@@ -1,5 +1,5 @@
 // NEOPIXEL BEST PRACTICES for most reliable operation:
-// - Add 1000 uF CAPACITOR between NeoPixel strip's + and - connections.
+// - Add 1000 µF CAPACITOR between NeoPixel strip's + and - connections.
 // - MINIMIZE WIRING LENGTH between microcontroller board and first pixel.
 // - NeoPixel strip's DATA-IN should pass through a 300-500 OHM RESISTOR.
 // - AVOID connecting NeoPixels on a LIVE CIRCUIT. If you must, ALWAYS
@@ -8,20 +8,18 @@
 //   a LOGIC-LEVEL CONVERTER on the data line is STRONGLY RECOMMENDED.
 // (Skipping these may work OK on your workbench but can fail in the field)
 
+// see https://www.tweaking4all.com/hardware/arduino/adruino-led-strip-effects/
+
 #include "led.h"
 
-// Which pin on the Arduino is connected to the NeoPixels?
-// On a Trinket or Gemma we suggest changing this to 1:
-#define LED_PIN    D6
+LED::LED(int ledCount, int pin) {
+  strip = new Adafruit_NeoPixel(ledCount, pin, NEO_BRG + NEO_KHZ800);
+  strip->begin();
+  strip->setBrightness(brightness);
+  setAll(0,0,0); // Set all black
 
-// How many NeoPixels are attached to the Arduino?
-#define LED_COUNT 100
-
-LED::LED() {
-  strip = new Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_BRG + NEO_KHZ800);  
-  strip->begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip->show();            // Turn OFF all pixels ASAP
-  strip->setBrightness(brightness); // Set BRIGHTNESS (max = 255)
+  randomSeed(random(326874522));
+  nextEffect();
 }
 
 LED::~LED() {
@@ -32,28 +30,68 @@ LED::~LED() {
 }
 
 void LED::loop() {
-  RGBLoop();
-  meteorRain(0xff,0xff,0xff,10, 64, true, 30);
+  static long time = 0;
+  static long duration = 15000;
+
+  if(millis() - time > duration) {
+    nextEffect();
+    time = millis();
+  }
+  switch(effect) {
+    case  0: SnowSparkle(0x10, 0x10, 0x10, 20, 200);
+             break;
+    case  1: Sparkle(random(255), random(255), random(255), 0);
+             break;
+    case  2: TwinkleRandom(20, 100, false);
+             break;
+    case  3: Twinkle(random(255), random(255), random(255), 10, 100, false);
+             break;
+    case  4: rainbow(velocity / 5);
+             break;
+    case  5: if(random(100) < 50) {
+               Strobe(0xff, 0xff, 0xff, 10, 50, 0);
+             }
+             meteorRain(0xff,0xff,0xff,10, 64, true, 30);
+             if(random(100) < 30) {
+               Strobe(0xff, 0xff, 0xff, 10, 50, 0);
+             }
+             break;
+    case  6: RunningLights(random(255), random(255), random(255), 50);
+             break;
+    case  7: NewKITT(random(255), random(255), random(255), 8, 10, 50);
+             break;
+    case  8: FadeInOut(random(255), random(255), random(255));
+             break;
+    case  9: colorWipe(strip->Color(random(255), random(255), random(255)), velocity);
+             break;
+    case 10: theaterChase(strip->Color(random(255), random(255), random(255)), velocity);
+             break;
+    case 11: theaterChaseRainbow(velocity);
+             break;
+    default: nextEffect();
+  }
   
-  // Fill along the length of the strip in various colors...
-  colorWipe(strip->Color(255,   0,   0), velocity); // Red
-  colorWipe(strip->Color(  0, 255,   0), velocity); // Green
-  colorWipe(strip->Color(  0,   0, 255), velocity); // Blue
-  colorWipe(strip->Color(  0,   255, 255), velocity);
-  colorWipe(strip->Color(  255,   0, 255), velocity);
-  colorWipe(strip->Color(  255,   255, 0), velocity);
-  colorWipe(strip->Color(  255,   255, 255), velocity);
+}
 
-  // Do a theater marquee effect in various colors...
-  theaterChase(strip->Color(127, 127, 127), velocity); // White, half brightness
-  theaterChase(strip->Color(127,   0,   0), velocity); // Red, half brightness
-  theaterChase(strip->Color(  0,   0, 127), velocity); // Blue, half brightness
-  theaterChase(strip->Color(  0,   127, 127), velocity);
-  theaterChase(strip->Color(  127,   0, 127), velocity);
-  theaterChase(strip->Color(  127,   127, 0), velocity);
-
-  rainbow(velocity / 5);         // Flowing rainbow cycle along the whole strip
-  theaterChaseRainbow(velocity); // Rainbow-enhanced theaterChase variant
+void LED::nextEffect() {
+  if(!staticEffect) {
+    if(randomEffect) {
+      effect = random(numEffects);
+    }
+    else {
+      effect++;
+    }
+  }
+  if(effect > numEffects ||
+     effect < 0) {
+    if(!staticEffect) {
+      effect = -1;
+      nextEffect();
+    }
+    else {
+      effect = 0;
+    }
+  }
 }
 
 
@@ -157,6 +195,29 @@ void LED::RGBLoop(){
   }
 }
 
+void LED::FadeInOut(byte red, byte green, byte blue) {
+  float r, g, b;
+
+  for(int k = 0; k < 256; k=k+1) {
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    strip->show();
+    delay(3);
+  }
+  delay(10);
+
+  for(int k = 255; k >= 0; k=k-2) {
+    r = (k/256.0)*red;
+    g = (k/256.0)*green;
+    b = (k/256.0)*blue;
+    setAll(r,g,b);
+    strip->show();
+    delay(3);
+  }
+}
+
 void LED::meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
   setAll(0,0,0);
 
@@ -180,6 +241,313 @@ void LED::meteorRain(byte red, byte green, byte blue, byte meteorSize, byte mete
    
     strip->show();
     delay(SpeedDelay);
+  }
+}
+
+void LED::Strobe(byte red, byte green, byte blue, int StrobeCount, int FlashDelay, int EndPause) {
+  for(int j = 0; j < StrobeCount; j++) {
+    setAll(red,green,blue);
+    strip->show();
+    delay(FlashDelay);
+    setAll(0,0,0);
+    strip->show();
+    delay(FlashDelay);
+  }
+ 
+ delay(EndPause);
+}
+
+void LED::HalloweenEyes(byte red, byte green, byte blue,
+                   int EyeWidth, int EyeSpace,
+                   boolean Fade, int Steps, int FadeDelay,
+                   int EndPause) {
+  randomSeed(analogRead(0));
+ 
+  int i;
+  int StartPoint  = random( 0, strip->numPixels() - (2*EyeWidth) - EyeSpace );
+  int Start2ndEye = StartPoint + EyeWidth + EyeSpace;
+ 
+  for(i = 0; i < EyeWidth; i++) {
+    strip->setPixelColor(StartPoint + i, red, green, blue);
+    strip->setPixelColor(Start2ndEye + i, red, green, blue);
+  }
+ 
+  strip->show();
+ 
+  if(Fade==true) {
+    float r, g, b;
+ 
+    for(int j = Steps; j >= 0; j--) {
+      r = j*(red/Steps);
+      g = j*(green/Steps);
+      b = j*(blue/Steps);
+     
+      for(i = 0; i < EyeWidth; i++) {
+        strip->setPixelColor(StartPoint + i, r, g, b);
+        strip->setPixelColor(Start2ndEye + i, r, g, b);
+      }
+     
+      strip->show();
+      delay(FadeDelay);
+    }
+  }
+ 
+  setAll(0,0,0); // Set all black
+ 
+  delay(EndPause);
+}
+
+void LED::CylonBounce(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+  int numLeds = strip->numPixels();
+
+  for(int i = 0; i < numLeds-EyeSize-2; i++) {
+    setAll(0,0,0);
+    strip->setPixelColor(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(i+j, red, green, blue);
+    }
+    strip->setPixelColor(i+EyeSize+1, red/10, green/10, blue/10);
+    strip->show();
+    delay(SpeedDelay);
+  }
+
+  delay(ReturnDelay);
+
+  for(int i = numLeds-EyeSize-2; i > 0; i--) {
+    setAll(0,0,0);
+    strip->setPixelColor(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(i+j, red, green, blue);
+    }
+    strip->setPixelColor(i+EyeSize+1, red/10, green/10, blue/10);
+    strip->show();
+    delay(SpeedDelay);
+  }
+ 
+  delay(ReturnDelay);
+}
+
+void LED::NewKITT(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay){
+  RightToLeft(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+  LeftToRight(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+  OutsideToCenter(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+  CenterToOutside(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+  LeftToRight(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+  RightToLeft(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+  OutsideToCenter(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+  CenterToOutside(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
+}
+
+void LED::CenterToOutside(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+  int numLeds = strip->numPixels();
+  for(int i =((numLeds-EyeSize)/2); i>=0; i--) {
+    setAll(0,0,0);
+   
+    strip->setPixelColor(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(i+j, red, green, blue);
+    }
+    strip->setPixelColor(i+EyeSize+1, red/10, green/10, blue/10);
+   
+    strip->setPixelColor(numLeds-i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(numLeds-i-j, red, green, blue);
+    }
+    strip->setPixelColor(numLeds-i-EyeSize-1, red/10, green/10, blue/10);
+   
+    strip->show();
+    delay(SpeedDelay);
+  }
+  delay(ReturnDelay);
+}
+
+void LED::OutsideToCenter(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+  int numLeds = strip->numPixels();
+  for(int i = 0; i<=((numLeds-EyeSize)/2); i++) {
+    setAll(0,0,0);
+   
+    strip->setPixelColor(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(i+j, red, green, blue);
+    }
+    strip->setPixelColor(i+EyeSize+1, red/10, green/10, blue/10);
+   
+    strip->setPixelColor(numLeds-i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(numLeds-i-j, red, green, blue);
+    }
+    strip->setPixelColor(numLeds-i-EyeSize-1, red/10, green/10, blue/10);
+   
+    strip->show();
+    delay(SpeedDelay);
+  }
+  delay(ReturnDelay);
+}
+
+void LED::LeftToRight(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+  int numLeds = strip->numPixels();
+  for(int i = 0; i < numLeds-EyeSize-2; i++) {
+    setAll(0,0,0);
+    strip->setPixelColor(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(i+j, red, green, blue);
+    }
+    strip->setPixelColor(i+EyeSize+1, red/10, green/10, blue/10);
+    strip->show();
+    delay(SpeedDelay);
+  }
+  delay(ReturnDelay);
+}
+
+void LED::RightToLeft(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+  int numLeds = strip->numPixels();
+  for(int i = numLeds-EyeSize-2; i > 0; i--) {
+    setAll(0,0,0);
+    strip->setPixelColor(i, red/10, green/10, blue/10);
+    for(int j = 1; j <= EyeSize; j++) {
+      strip->setPixelColor(i+j, red, green, blue);
+    }
+    strip->setPixelColor(i+EyeSize+1, red/10, green/10, blue/10);
+    strip->show();
+    delay(SpeedDelay);
+  }
+  delay(ReturnDelay);
+}
+
+void LED::Twinkle(byte red, byte green, byte blue, int Count, int SpeedDelay, boolean OnlyOne) {
+//  Serial.printf("Start LED:Twinkle(%d, %d, %d, %d, %d, %s)\n", red, green, blue, Count, SpeedDelay, OnlyOne?"true":"false");
+  setAll(0,0,0);
+ 
+  for (int i=0; i<Count; i++) {
+     strip->setPixelColor(random(strip->numPixels()),red,green,blue);
+     strip->show();
+     delay(SpeedDelay);
+     if(OnlyOne) {
+       setAll(0,0,0);
+     }
+   }
+ 
+  delay(SpeedDelay);
+//  Serial.printf("End LED:Twinkle\n");
+}
+
+void LED::TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
+//  Serial.printf("Start LED:TwinkleRandom(%d, %d, %s)\n", Count, SpeedDelay, OnlyOne?"true":"false");
+  setAll(0,0,0);
+ 
+  for (int i=0; i<Count; i++) {
+     strip->setPixelColor(random(strip->numPixels()),random(0,255),random(0,255),random(0,255));
+     strip->show();
+     delay(SpeedDelay);
+     if(OnlyOne) {
+       setAll(0,0,0);
+     }
+   }
+ 
+  delay(SpeedDelay);
+//  Serial.printf("End LED:TwinkleRandom\n");
+}
+
+void LED::Sparkle(byte red, byte green, byte blue, int SpeedDelay) {
+//  Serial.printf("Start LED:Sparkle(%d, %d, %d, %d)\n", red, green, blue, SpeedDelay);
+  int Pixel = random(strip->numPixels());
+  strip->setPixelColor(Pixel,red,green,blue);
+  strip->show();
+  delay(SpeedDelay);
+  strip->setPixelColor(Pixel,0,0,0);
+//  Serial.printf("End LED:Sparkle\n");
+}
+
+void LED::SnowSparkle(byte red, byte green, byte blue, int SparkleDelay, int SpeedDelay) {
+//  Serial.printf("Start LED:SnowSparkle(%d, %d, %d, %d, %d)\n", red, green, blue, SparkleDelay, SpeedDelay);
+  setAll(red,green,blue);
+ 
+  int Pixel = random(strip->numPixels());
+  strip->setPixelColor(Pixel,0xff,0xff,0xff);
+  strip->show();
+  delay(SparkleDelay);
+  strip->setPixelColor(Pixel,red,green,blue);
+  strip->show();
+  delay(SpeedDelay);
+//  Serial.printf("End LED:SnowSparkle\n");
+}
+
+void LED::RunningLights(byte red, byte green, byte blue, int WaveDelay) {
+//  Serial.printf("Start LED::RunningLights(%d, %d, %d, %d)\n", red, green, blue, WaveDelay);
+  int Position=0;
+  int numLeds = strip->numPixels();
+ 
+  for(int j=0; j<numLeds*2; j++)
+  {
+      Position++; // = 0; //Position + Rate;
+      for(int i=0; i<numLeds; i++) {
+        // sine wave, 3 offset waves make a rainbow!
+        //float level = sin(i+Position) * 127 + 128;
+        //setPixel(i,level,0,0);
+        //float level = sin(i+Position) * 127 + 128;
+        strip->setPixelColor(i,((sin(i+Position) * 127 + 128)/255)*red,
+                               ((sin(i+Position) * 127 + 128)/255)*green,
+                               ((sin(i+Position) * 127 + 128)/255)*blue);
+      }
+     
+      strip->show();
+      delay(WaveDelay);
+  }
+//  Serial.println("End LED::RunningLights\n");
+}
+
+void LED::Fire(int Cooling, int Sparking, int SpeedDelay) {
+  const int numLeds = strip->numPixels();
+  byte heat[numLeds];
+  int cooldown;
+ 
+  // Step 1.  Cool down every cell a little
+  for( int i = 0; i < numLeds; i++) {
+    cooldown = random(0, ((Cooling * 10) / numLeds) + 2);
+   
+    if(cooldown>heat[i]) {
+      heat[i]=0;
+    } else {
+      heat[i]=heat[i]-cooldown;
+    }
+  }
+ 
+  // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+  for( int k= numLeds - 1; k >= 2; k--) {
+    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+  }
+   
+  // Step 3.  Randomly ignite new 'sparks' near the bottom
+  if( random(255) < Sparking ) {
+    int y = random(7);
+    heat[y] = heat[y] + random(160,255);
+    //heat[y] = random(160,255);
+  }
+
+  // Step 4.  Convert heat to LED colors
+  for( int j = 0; j < numLeds; j++) {
+    setPixelHeatColor(j, heat[j] );
+  }
+
+  strip->show();
+  delay(SpeedDelay);
+}
+
+void LED::setPixelHeatColor (int Pixel, byte temperature) {
+  // Scale 'heat' down from 0-255 to 0-191
+  byte t192 = round((temperature/255.0)*191);
+ 
+  // calculate ramp up from
+  byte heatramp = t192 & 0x3F; // 0..63
+  heatramp <<= 2; // scale up to 0..252
+ 
+  // figure out which third of the spectrum we're in:
+  if( t192 > 0x80) {                     // hottest
+    strip->setPixelColor(Pixel, 255, 255, heatramp);
+  } else if( t192 > 0x40 ) {             // middle
+    strip->setPixelColor(Pixel, 255, heatramp, 0);
+  } else {                               // coolest
+    strip->setPixelColor(Pixel, heatramp, 0, 0);
   }
 }
 
