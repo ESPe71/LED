@@ -11,6 +11,7 @@ class LED {
     
     void loop();
 
+    boolean randomEffect = true;
   private:
     Adafruit_NeoPixel* strip = nullptr;
     
@@ -19,11 +20,10 @@ class LED {
 
     const int numEffects = 11;
     int effect = -1;
-    boolean randomEffect = true;
     boolean staticEffect = false;
 
     void nextEffect();
-    
+
     void colorWipe(uint32_t color, int wait);
     void theaterChase(uint32_t color, int wait);
     void rainbow(int wait);

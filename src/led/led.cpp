@@ -12,6 +12,15 @@
 
 #include "led.h"
 
+#include <Nextion.h>
+
+NexDSButton btn(0, 14, "bt0");
+NexProgressBar progress(0, 13, "h0");
+
+void btnRelease(void *ptr) {
+  digitalWrite(BUILTIN_LED, !digitalRead(BUILTIN_LED));
+}
+
 LED::LED(int ledCount, int pin) {
   strip = new Adafruit_NeoPixel(ledCount, pin, NEO_BRG + NEO_KHZ800);
   strip->begin();
@@ -20,6 +29,9 @@ LED::LED(int ledCount, int pin) {
 
   randomSeed(random(326874522));
   nextEffect();
+
+  btn.attachPop(btnRelease);
+  btn.setValue(randomEffect?1:0);
 }
 
 LED::~LED() {
@@ -92,6 +104,7 @@ void LED::nextEffect() {
       effect = 0;
     }
   }
+  progress.setValue(effect);
 }
 
 
@@ -415,7 +428,6 @@ void LED::RightToLeft(byte red, byte green, byte blue, int EyeSize, int SpeedDel
 }
 
 void LED::Twinkle(byte red, byte green, byte blue, int Count, int SpeedDelay, boolean OnlyOne) {
-//  Serial.printf("Start LED:Twinkle(%d, %d, %d, %d, %d, %s)\n", red, green, blue, Count, SpeedDelay, OnlyOne?"true":"false");
   setAll(0,0,0);
  
   for (int i=0; i<Count; i++) {
@@ -428,11 +440,9 @@ void LED::Twinkle(byte red, byte green, byte blue, int Count, int SpeedDelay, bo
    }
  
   delay(SpeedDelay);
-//  Serial.printf("End LED:Twinkle\n");
 }
 
 void LED::TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
-//  Serial.printf("Start LED:TwinkleRandom(%d, %d, %s)\n", Count, SpeedDelay, OnlyOne?"true":"false");
   setAll(0,0,0);
  
   for (int i=0; i<Count; i++) {
@@ -445,21 +455,17 @@ void LED::TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
    }
  
   delay(SpeedDelay);
-//  Serial.printf("End LED:TwinkleRandom\n");
 }
 
 void LED::Sparkle(byte red, byte green, byte blue, int SpeedDelay) {
-//  Serial.printf("Start LED:Sparkle(%d, %d, %d, %d)\n", red, green, blue, SpeedDelay);
   int Pixel = random(strip->numPixels());
   strip->setPixelColor(Pixel,red,green,blue);
   strip->show();
   delay(SpeedDelay);
   strip->setPixelColor(Pixel,0,0,0);
-//  Serial.printf("End LED:Sparkle\n");
 }
 
 void LED::SnowSparkle(byte red, byte green, byte blue, int SparkleDelay, int SpeedDelay) {
-//  Serial.printf("Start LED:SnowSparkle(%d, %d, %d, %d, %d)\n", red, green, blue, SparkleDelay, SpeedDelay);
   setAll(red,green,blue);
  
   int Pixel = random(strip->numPixels());
@@ -469,11 +475,9 @@ void LED::SnowSparkle(byte red, byte green, byte blue, int SparkleDelay, int Spe
   strip->setPixelColor(Pixel,red,green,blue);
   strip->show();
   delay(SpeedDelay);
-//  Serial.printf("End LED:SnowSparkle\n");
 }
 
 void LED::RunningLights(byte red, byte green, byte blue, int WaveDelay) {
-//  Serial.printf("Start LED::RunningLights(%d, %d, %d, %d)\n", red, green, blue, WaveDelay);
   int Position=0;
   int numLeds = strip->numPixels();
  
@@ -493,7 +497,6 @@ void LED::RunningLights(byte red, byte green, byte blue, int WaveDelay) {
       strip->show();
       delay(WaveDelay);
   }
-//  Serial.println("End LED::RunningLights\n");
 }
 
 void LED::Fire(int Cooling, int Sparking, int SpeedDelay) {

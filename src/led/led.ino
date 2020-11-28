@@ -6,16 +6,14 @@
 LED* led = nullptr;
 
 void setup() {
-  Serial.begin(115200);
-  Serial.printf("\n\n\n");
-  Serial.println("Setting up.");
+  Serial.begin(9600);
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
   led = new LED(LED_COUNT, LED_PIN);
-  Serial.println("Setup ready.");
 }
 
 
 void loop() {
-//  Serial.println("loop started.");
   led->loop();
-//  Serial.println("loop ended.");
 }
